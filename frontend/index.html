@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartTrip</title>
+    <style>
+        body {
+            font-family: Arial;
+            max-width: 900px;
+            margin: auto;
+            background-color: #f4f6f8;
+        }
+
+        h2, h3 {
+            text-align: center;
+        }
+
+        .person-form {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            background-color: white;
+        }
+
+        button {
+            padding: 10px 15px;
+            margin-top: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        input, select {
+            padding: 6px;
+            margin-top: 5px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #results {
+            margin-top: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .loading {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<h2>SmartTrip Group Travel Planner</h2>
+
+<h3>Basic Info</h3>
+
+<label>Start City:</label>
+<input type="text" id="start_city">
+
+<label>Month:</label>
+<select id="month">
+    <option>January</option>
+    <option>February</option>
+    <option>March</option>
+    <option>April</option>
+    <option>May</option>
+    <option>June</option>
+    <option>July</option>
+    <option>August</option>
+    <option>September</option>
+    <option>October</option>
+    <option>November</option>
+    <option>December</option>
+</select>
+
+<label>Region:</label>
+<select id="region">
+    <option>Europe</option>
+    <option>Asia</option>
+    <option>North America</option>
+    <option>South America</option>
+    <option>Africa</option>
+    <option>Oceania</option>
+</select>
+
+<label>Number of travelers:</label>
+<input type="number" id="num_people" min="1">
+
+<button onclick="generateForms()">Next</button>
+
+<div id="peopleForms"></div>
+
+<button id="recommendBtn" class="hidden" onclick="submitForm()">Get Recommendations</button>
+
+<div id="loading" class="loading"></div>
+
+<div id="resultsSection" class="hidden">
+    <h3>Recommendations</h3>
+    <div id="results"></div>
+</div>
+
+<script>
+function generateForms() {
+
+    const container = document.getElementById("peopleForms");
+    container.innerHTML = "";
+
+    const num = document.getElementById("num_people").value;
+
+    if (!num || num < 1) {
+        alert("Please enter number of travelers.");
+        return;
+    }
+
+    for (let i = 0; i < num; i++) {
+        container.innerHTML += `
+            <div class="person-form">
+                <h4>Person ${i + 1}</h4>
+
+                Budget (€):
+                <input type="number" class="budget">
+
+                Days:
+                <input type="number" class="days">
+
+                Temperature:
+                <select class="temperature">
+                    <option value="cold">Cold</option>
+                    <option value="neutral">Neutral</option>
+                    <option value="warm">Warm</option>
+                </select>
+
+                Activities (comma separated):
+                <input type="text" class="activities">
+            </div>
+        `;
+    }
+
+    // prikazi dugme tek sad
+    document.getElementById("recommendBtn").classList.remove("hidden");
+}
+
+async function submitForm() {
+
+    const loadingDiv = document.getElementById("loading");
+    const resultsDiv = document.getElementById("results");
+    const resultsSection = document.getElementById("resultsSection");
+
+    loadingDiv.innerHTML = "Calculating best destinations...";
+    resultsDiv.innerHTML = "";
+    resultsSection.classList.add("hidden");
+
+    const group = [];
+
+    const budgets = document.getElementsByClassName("budget");
+    const days = document.getElementsByClassName("days");
+    const temps = document.getElementsByClassName("temperature");
+    const activities = document.getElementsByClassName("activities");
+
+    for (let i = 0; i < budgets.length; i++) {
+        group.push({
+            max_budget_eur: parseFloat(budgets[i].value),
+            max_days: parseInt(days[i].value),
+            temperature: temps[i].value,
+            activities: activities[i].value
+                .split(",")
+                .map(a => a.trim())
+                .filter(a => a.length > 0)
+        });
+    }
+
+    const payload = {
+        start_city: document.getElementById("start_city").value,
+        month: document.getElementById("month").value,
+        region: document.getElementById("region").value,
+        group: group
+    };
+
+    try {
+        const response = await fetch("/recommend", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        loadingDiv.innerHTML = "";
+
+        if (!data.recommendations) {
+            resultsDiv.innerHTML = "No recommendations found.";
+            resultsSection.classList.remove("hidden");
+            return;
+        }
+
+        data.recommendations.forEach(rec => {
+            resultsDiv.innerHTML += `
+                <div class="card">
+                    <h4>${rec.city}, ${rec.country}</h4>
+                    <p><strong>Score:</strong> ${rec.final_score.toFixed(3)}</p>
+                    <p><strong>Estimated cost:</strong> €${rec.estimated_cost.toFixed(0)}</p>
+                    <p><strong>Average temp:</strong> ${rec.avg_temp.toFixed(1)}°C</p>
+                    <p>${rec.description}</p>
+                </div>
+            `;
+        });
+
+        resultsSection.classList.remove("hidden");
+
+    } catch (error) {
+        loadingDiv.innerHTML = "";
+        resultsDiv.innerHTML = "Something went wrong.";
+        resultsSection.classList.remove("hidden");
+        console.error(error);
+    }
+}
+</script>
+
+</body>
+</html>
