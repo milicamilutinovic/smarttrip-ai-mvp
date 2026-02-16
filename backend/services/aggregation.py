@@ -1,12 +1,11 @@
 """
 GROUP AGGREGATION MODULE
-=========================
-Advanced group-aware aggregation with fairness metrics.
-
+========================
 Features:
 - Hard constraints (budget, duration)
 - Temperature aggregation
 - Activity interest aggregation
+- Text description aggregation (NEW)
 - Temperature variance (fairness signal)
 - Activity diversity (Jaccard-based)
 - Individual preference tracking
@@ -15,11 +14,9 @@ Features:
 from collections import defaultdict
 from typing import Dict, List
 import numpy as np
+from backend.services.scoring import DURATION_DAYS
 
 
-# -------------------------------------------------
-# Temperature mapping to normalized space
-# -------------------------------------------------
 TEMP_MAP = {
     "cold": 0.0,
     "neutral": 0.5,
@@ -27,40 +24,10 @@ TEMP_MAP = {
 }
 
 
-# -------------------------------------------------
-# Main aggregation function
-# -------------------------------------------------
 def aggregate_group_preferences(
     group_input: Dict,
     strategy: str = "average_with_fairness"
 ) -> Dict:
-    """
-    Aggregate group preferences with fairness awareness.
-
-    Args:
-        group_input: {
-            "start_city": str,
-            "month": int,
-            "region": str,
-            "group": [
-                {
-                    "max_budget_eur": int,
-                    "max_days": int,
-                    "temperature": str,
-                    "activities": List[str]
-                },
-                ...
-            ]
-        }
-
-        strategy:
-            - "average"
-            - "least_misery"
-            - "average_with_fairness"
-
-    Returns:
-        group_profile dict
-    """
 
     group = group_input["group"]
     size = len(group)
@@ -68,28 +35,26 @@ def aggregate_group_preferences(
     if size == 0:
         raise ValueError("Group cannot be empty.")
 
-    # -------------------------------------------------
     # HARD CONSTRAINTS
-    # -------------------------------------------------
     group_budget = min(p["max_budget_eur"] for p in group)
-    group_days = min(p["max_days"] for p in group)
 
-    # -------------------------------------------------
+    group_days = min(
+        DURATION_DAYS[p["max_days"]]
+        for p in group
+    )
+
+
     # TEMPERATURE AGGREGATION
-    # -------------------------------------------------
     temps = [TEMP_MAP[p["temperature"]] for p in group]
 
     if strategy == "least_misery":
-        # Conservative – middle ground
         preferred_temperature = np.median(temps)
     else:
         preferred_temperature = sum(temps) / size
 
     temp_variance = float(np.var(temps))
 
-    # -------------------------------------------------
     # ACTIVITY AGGREGATION
-    # -------------------------------------------------
     interests = defaultdict(int)
     individual_activities = []
 
@@ -100,30 +65,38 @@ def aggregate_group_preferences(
             person_interests[act] = 1.0
         individual_activities.append(person_interests)
 
-    # Normalized interest weights (0-1)
     interest_profile = {
         k: v / size for k, v in interests.items()
     }
 
     activity_diversity = calculate_activity_diversity(individual_activities)
 
-    # -------------------------------------------------
-    # BUILD GROUP PROFILE
-    # -------------------------------------------------
+    # TEXT DESCRIPTION AGGREGATION
+    descriptions = []
+    individual_descriptions = []
+
+    for p in group:
+        desc = p.get("description", "")
+        if desc:
+            descriptions.append(desc)
+            individual_descriptions.append(desc)
+
+    group_description = " ".join(descriptions)
+
+    # BUILD GROUP PROFILE (NO REGION)
     group_profile = {
         "start_city": group_input["start_city"],
         "month": group_input["month"],
-        "region": group_input["region"],
 
-        # Hard constraints
         "group_budget": group_budget,
         "trip_days": group_days,
 
-        # Soft preferences
         "preferred_temperature": preferred_temperature,
         "interests": interest_profile,
 
-        # Fairness tracking
+        "group_description": group_description,
+        "individual_descriptions": individual_descriptions,
+
         "group_size": size,
         "individual_temps": temps,
         "temp_variance": temp_variance,
@@ -136,12 +109,8 @@ def aggregate_group_preferences(
     return group_profile
 
 
-# -------------------------------------------------
-# Activity diversity (Jaccard-based)
-# -------------------------------------------------
-def calculate_activity_diversity(
-    individual_activities: List[Dict]
-) -> float:
+
+def calculate_activity_diversity(individual_activities: List[Dict]) -> float:
     """
     Measures how different group members are in their activities.
 
@@ -149,7 +118,6 @@ def calculate_activity_diversity(
         0 → identical interests
         1 → completely different interests
     """
-
     if len(individual_activities) < 2:
         return 0.0
 
@@ -157,7 +125,6 @@ def calculate_activity_diversity(
 
     for i in range(len(individual_activities)):
         for j in range(i + 1, len(individual_activities)):
-
             set_i = set(individual_activities[i].keys())
             set_j = set(individual_activities[j].keys())
 
@@ -171,30 +138,19 @@ def calculate_activity_diversity(
     return float(np.mean(diversities)) if diversities else 0.0
 
 
-# -------------------------------------------------
-# Individual satisfaction (for fairness scoring)
-# -------------------------------------------------
-def calculate_individual_satisfaction(
-    destination_row,
-    person_preferences: Dict
-) -> float:
+def calculate_individual_satisfaction(destination_row, person_preferences: Dict) -> float:
     """
-    Computes individual satisfaction score (0-1)
-    for fairness penalization layer.
-
+    Computes individual satisfaction score (0-1) for fairness penalization layer.
     Used inside scoring module.
     """
-
     satisfaction = 0.0
 
-    # Temperature satisfaction
     person_temp = TEMP_MAP[person_preferences["temperature"]]
     dest_temp = destination_row["avg_temp_norm"]
 
     temp_satisfaction = 1.0 - abs(person_temp - dest_temp)
     satisfaction += 0.4 * temp_satisfaction
 
-    # Activity satisfaction (simple heuristic)
     activity_match = 0.0
     person_activities = person_preferences.get("activities", [])
 
