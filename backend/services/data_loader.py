@@ -37,7 +37,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def load_destinations(start_city_coords: tuple, month: int):
+def load_destinations(start_city_coords: tuple, month: int, region: str):
     """
     Load and prepare destination dataset.
     
@@ -51,6 +51,12 @@ def load_destinations(start_city_coords: tuple, month: int):
         tfidf_matrix: TF-IDF matrix of text profiles
     """
     df = pd.read_csv(DATA_PATH)
+
+    # --- filtriranje po regiji ---
+    df = df[df["region"].str.lower() == region.lower()].reset_index(drop=True)
+    
+    if df.empty:
+        return None, None, None
 
     df.columns = df.columns.str.lower()
     df["city"] = df["city"].str.lower()
@@ -68,7 +74,9 @@ def load_destinations(start_city_coords: tuple, month: int):
     )
 
     min_d, max_d = df["distance_km"].min(), df["distance_km"].max()
-    df["distance_norm"] = (df["distance_km"] - min_d) / (max_d - min_d)
+
+    diff_d = max_d - min_d
+    df["distance_norm"] = (df["distance_km"] - min_d) / diff_d if diff_d > 0 else 0.0
 
     # TEMPERATURE - extract for specific month
     def get_temp_for_month(temp_dict_str, target_month):
@@ -80,7 +88,8 @@ def load_destinations(start_city_coords: tuple, month: int):
     )
 
     min_t, max_t = df["avg_temp"].min(), df["avg_temp"].max()
-    df["avg_temp_norm"] = (df["avg_temp"] - min_t) / (max_t - min_t)
+    diff_t = max_t - min_t
+    df["avg_temp_norm"] = (df["avg_temp"] - min_t) / diff_t if diff_t > 0 else 0.5
 
     def climate_label(temp_celsius):
         if temp_celsius < 10:

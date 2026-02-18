@@ -39,8 +39,12 @@ def recommend(group_input: GroupRequest):
     # 2️ Load destinations
     df, vectorizer, tfidf_matrix = load_destinations(
         start_city_coords=coords,
-        month=group_dict["month"]
+        month=group_dict["month"],
+        region=group_dict["region"]
     )
+
+    if df is None:
+        return {"recommendations": [], "error": "No destinations found in this region"}
 
     # 3️ Aggregate
     group_profile = aggregate_group_preferences(

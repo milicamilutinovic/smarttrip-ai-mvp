@@ -12,4 +12,5 @@ class Person(BaseModel):
 class GroupRequest(BaseModel):
     start_city: str
     month: int
+    region: str
     group: List[Person]

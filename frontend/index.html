@@ -1,99 +1,121 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
+  <head>
     <title>SmartTrip</title>
     <style>
-        body {
-            font-family: Arial;
-            max-width: 900px;
-            margin: auto;
-            background-color: #f4f6f8;
-        }
+      body {
+        font-family: Arial;
+        max-width: 900px;
+        margin: auto;
+        background-color: #f4f6f8;
+      }
 
-        h2 { text-align: center; }
+      h2 {
+        text-align: center;
+      }
 
-        .person-form {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 8px;
-            background-color: white;
-        }
+      .person-form {
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 8px;
+        background-color: white;
+      }
 
-        button {
-            padding: 10px 15px;
-            margin-top: 10px;
-            cursor: pointer;
-            border-radius: 5px;
-            border: none;
-            background-color: #007bff;
-            color: white;
-        }
+      button {
+        padding: 10px 15px;
+        margin-top: 10px;
+        cursor: pointer;
+        border-radius: 5px;
+        border: none;
+        background-color: #007bff;
+        color: white;
+      }
 
-        input, select, textarea {
-            padding: 6px;
-            margin-top: 5px;
-            width: 100%;
-            box-sizing: border-box;
-        }
+      input,
+      select,
+      textarea {
+        padding: 6px;
+        margin-top: 5px;
+        width: 100%;
+        box-sizing: border-box;
+      }
 
-        textarea {
-            height: 80px;
-            resize: vertical;
-        }
+      textarea {
+        height: 80px;
+        resize: vertical;
+      }
 
-        .card {
-            background: white;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
+      .card {
+        background: white;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
+    <h2>SmartTrip Group Travel Planner</h2>
 
-<h2>SmartTrip Group Travel Planner</h2>
+    <label>Start City:</label>
+    <input type="text" id="start_city" placeholder="e.g. Vienna" />
 
-<label>Start City:</label>
-<input type="text" id="start_city" placeholder="e.g. Vienna">
+    <label>Month:</label>
+    <select id="month">
+      <option value="1">January</option>
+      <option value="2">February</option>
+      <option value="3">March</option>
+      <option value="4">April</option>
+      <option value="5">May</option>
+      <option value="6">June</option>
+      <option value="7">July</option>
+      <option value="8">August</option>
+      <option value="9">September</option>
+      <option value="10">October</option>
+      <option value="11">November</option>
+      <option value="12">December</option>
+    </select>
 
-<label>Month:</label>
-<select id="month">
-    <option value="1">January</option>
-    <option value="6">June</option>
-    <option value="7">July</option>
-    <option value="12">December</option>
-</select>
+    <label>Region:</label>
+    <select id="region">
+      <option value="europe">Europe</option>
+      <option value="asia">Asia</option>
+      <option value="middle_east">Middle East</option>
+      <option value="north_america">North America</option>
+      <option value="south_america">South America</option>
+      <option value="africa">Africa</option>
+      <option value="oceania">Oceania</option>
+    </select>
 
-<label>Number of travelers:</label>
-<input type="number" id="num_people" min="1" max="10">
+    <label>Number of travelers:</label>
+    <input type="number" id="num_people" min="1" max="10" />
 
-<button onclick="generateForms()">Next</button>
+    <button onclick="generateForms()">Next</button>
 
-<div id="peopleForms"></div>
-<button id="recommendBtn" style="display:none;" onclick="submitForm()">Get Recommendations</button>
+    <div id="peopleForms"></div>
+    <button id="recommendBtn" style="display: none" onclick="submitForm()">
+      Get Recommendations
+    </button>
 
-<div id="results"></div>
+    <div id="results"></div>
 
-<script>
+    <script>
+      function generateForms() {
+        const container = document.getElementById("peopleForms");
+        container.innerHTML = "";
 
-function generateForms() {
+        const num = document.getElementById("num_people").value;
 
-    const container = document.getElementById("peopleForms");
-    container.innerHTML = "";
+        if (!num || num < 1) {
+          alert("Enter number of travelers.");
+          return;
+        }
 
-    const num = document.getElementById("num_people").value;
-
-    if (!num || num < 1) {
-        alert("Enter number of travelers.");
-        return;
-    }
-
-    for (let i = 0; i < num; i++) {
-        container.innerHTML += `
+        for (let i = 0; i < num; i++) {
+          container.innerHTML += `
         <div class="person-form">
-            <h4>Person ${i+1}</h4>
+            <h4>Person ${i + 1}</h4>
 
             <label>Budget (EUR):</label>
             <input type="number" class="budget" placeholder="800">
@@ -118,72 +140,69 @@ function generateForms() {
             <textarea class="description" placeholder="I want museums, good food and nightlife"></textarea>
         </div>
         `;
-    }
-
-    document.getElementById("recommendBtn").style.display = "block";
-}
-
-async function submitForm() {
-
-    const group = [];
-
-    const budgets = document.getElementsByClassName("budget");
-    const durations = document.getElementsByClassName("duration");
-    const temps = document.getElementsByClassName("temperature");
-    const descriptions = document.getElementsByClassName("description");
-
-    for (let i = 0; i < budgets.length; i++) {
-
-        if (!budgets[i].value || !descriptions[i].value) {
-            alert("Please fill all fields.");
-            return;
         }
 
-        group.push({
+        document.getElementById("recommendBtn").style.display = "block";
+      }
+
+      async function submitForm() {
+        const group = [];
+
+        const budgets = document.getElementsByClassName("budget");
+        const durations = document.getElementsByClassName("duration");
+        const temps = document.getElementsByClassName("temperature");
+        const descriptions = document.getElementsByClassName("description");
+
+        for (let i = 0; i < budgets.length; i++) {
+          if (!budgets[i].value || !descriptions[i].value) {
+            alert("Please fill all fields.");
+            return;
+          }
+
+          group.push({
             max_budget_eur: parseFloat(budgets[i].value),
-            max_days: durations[i].value,  // STRING
+            max_days: durations[i].value, // STRING
             temperature: temps[i].value,
-            description: descriptions[i].value
+            description: descriptions[i].value,
+          });
+        }
+
+        const payload = {
+          start_city: document.getElementById("start_city").value,
+          month: parseInt(document.getElementById("month").value),
+          region: document.getElementById("region").value,
+          group: group,
+        };
+
+        const response = await fetch("/recommend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
-    }
 
-    const payload = {
-        start_city: document.getElementById("start_city").value,
-        month: parseInt(document.getElementById("month").value),
-        group: group
-    };
+        const data = await response.json();
 
-    const response = await fetch("/recommend", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-    });
+        if (data.error) {
+          document.getElementById("results").innerHTML = `<p>${data.error}</p>`;
+          return;
+        }
 
-    const data = await response.json();
+        let html = "";
 
-    if (data.error) {
-        document.getElementById("results").innerHTML = `<p>${data.error}</p>`;
-        return;
-    }
-
-    let html = "";
-
-    data.recommendations.forEach((rec, idx) => {
-        html += `
+        data.recommendations.forEach((rec, idx) => {
+          html += `
         <div class="card">
-            <h4>${idx+1}. ${rec.city}, ${rec.country}</h4>
+            <h4>${idx + 1}. ${rec.city}, ${rec.country}</h4>
             <p>Score: ${rec.final_score.toFixed(3)}</p>
             <p>Estimated cost: €${rec.estimated_cost.toFixed(0)}</p>
             <p>Avg temp: ${rec.avg_temp.toFixed(1)}°C</p>
             <p>${rec.description}</p>
         </div>
         `;
-    });
+        });
 
-    document.getElementById("results").innerHTML = html;
-}
-
-</script>
-
-</body>
+        document.getElementById("results").innerHTML = html;
+      }
+    </script>
+  </body>
 </html>
