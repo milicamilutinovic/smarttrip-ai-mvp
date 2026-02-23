@@ -12,7 +12,8 @@ import numpy as np
 import math
 import ast
 from sklearn.feature_extraction.text import TfidfVectorizer
-
+GLOBAL_MIN_TEMP = -10
+GLOBAL_MAX_TEMP = 45
 
 DATA_PATH = "data/worldwide_travel_cities.csv"
 
@@ -76,7 +77,10 @@ def load_destinations(start_city_coords: tuple, month: int, region: str):
     min_d, max_d = df["distance_km"].min(), df["distance_km"].max()
 
     diff_d = max_d - min_d
-    df["distance_norm"] = (df["distance_km"] - min_d) / diff_d if diff_d > 0 else 0.0
+    if diff_d > 0:
+        df["distance_norm"] = (df["distance_km"] - min_d) / diff_d
+    else:
+        df["distance_norm"] = 0.0
 
     # TEMPERATURE - extract for specific month
     def get_temp_for_month(temp_dict_str, target_month):
@@ -87,15 +91,16 @@ def load_destinations(start_city_coords: tuple, month: int, region: str):
         lambda x: get_temp_for_month(x, month)
     )
 
-    min_t, max_t = df["avg_temp"].min(), df["avg_temp"].max()
-    diff_t = max_t - min_t
-    df["avg_temp_norm"] = (df["avg_temp"] - min_t) / diff_t if diff_t > 0 else 0.5
-
+    
+    df["avg_temp_norm"] = (
+        (df["avg_temp"] - GLOBAL_MIN_TEMP) /
+        (GLOBAL_MAX_TEMP - GLOBAL_MIN_TEMP)
+)
     def climate_label(temp_celsius):
         if temp_celsius < 10:
             return "cold"
         elif temp_celsius < 23:
-            return "moderate"
+            return "neutral"
         return "warm"
 
     df["climate_category"] = df["avg_temp"].apply(climate_label)
@@ -134,7 +139,7 @@ def load_destinations(start_city_coords: tuple, month: int, region: str):
         max_features=200,
         stop_words="english",
         ngram_range=(1, 2),
-        min_df=2
+        min_df=1
     )
 
     tfidf_matrix = vectorizer.fit_transform(df["text_profile"])

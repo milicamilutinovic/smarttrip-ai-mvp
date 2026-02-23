@@ -13,7 +13,8 @@ from backend.services.diversification import (
     diversify_recommendations
 )
 from backend.services.geocoding import get_coordinates
-
+from backend.services.intent_extraction import extract_intent
+from backend.services.aggregation import aggregate_group_preferences
 
 app = FastAPI(title="SmartTrip AI API")
 
@@ -46,6 +47,11 @@ def recommend(group_input: GroupRequest):
     if df is None:
         return {"recommendations": [], "error": "No destinations found in this region"}
 
+    #  dodato
+    # 1 Intent extraction za svakog člana grupe
+    for person in group_dict["group"]:
+        intent_result = extract_intent(person["description"])
+        person["activities"] = intent_result.get("activities", [])
     # 3️ Aggregate
     group_profile = aggregate_group_preferences(
         group_dict,
@@ -57,7 +63,7 @@ def recommend(group_input: GroupRequest):
         df,
         group_profile["group_description"],
         vectorizer,
-        tfidf_matrix[df.index],
+        tfidf_matrix = tfidf_matrix[:len(df)],
         beta=0.6,
         alpha=0.7
     )

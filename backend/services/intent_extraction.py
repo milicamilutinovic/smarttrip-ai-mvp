@@ -281,3 +281,27 @@ if __name__ == "__main__":
         for attr, score in sorted_intent[:3]:
             if score > 0:
                 print(f"  {attr:12s}: {score:.3f}")
+
+
+def extract_intent(user_text: str, alpha: float = 0.7) -> Dict:
+    """
+    Wrapper around extract_intent_vector.
+    Returns both intent vector and list of dominant activities.
+    """
+
+    intent_vector = extract_intent_vector(
+        user_text,
+        attributes=DATASET_COLUMNS,
+        alpha=alpha
+    )
+
+    # Aktivnosti sa značajnim score-om
+    activities = [
+        attr for attr, score in intent_vector.items()
+        if score >= 0.15   # prag možeš podešavati
+    ]
+
+    return {
+        "activities": activities,
+        "intent_vector": intent_vector
+    }

@@ -14,14 +14,7 @@ Features:
 from collections import defaultdict
 from typing import Dict, List
 import numpy as np
-from backend.services.scoring import DURATION_DAYS
-
-
-TEMP_MAP = {
-    "cold": 0.0,
-    "neutral": 0.5,
-    "warm": 1.0
-}
+from backend.services.constants import TEMP_MAP, DURATION_DAYS, TEMP_RANGES
 
 
 def aggregate_group_preferences(

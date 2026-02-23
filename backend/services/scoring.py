@@ -14,27 +14,9 @@ import pandas as pd
 import numpy as np
 import ast
 from backend.services.cost_model import estimate_total_trip_cost as cost_func
-
-
-TEMP_MAP = {
-    "cold": 0.0,
-    "neutral": 0.5,
-    "warm": 1.0
-}
-
-TEMP_RANGES = {
-    "cold": (0, 15),
-    "neutral": (15, 25),
-    "warm": (25, 40)
-}
-
-DURATION_DAYS = {
-    "one day": 1,
-    "weekend": 2.5,
-    "short trip": 4,
-    "one week": 7,
-    "long trip": 12
-}
+from backend.services.constants import TEMP_MAP, DURATION_DAYS, TEMP_RANGES
+from backend.services.recommender import compute_user_intent_vector
+from backend.services.recommender import DATASET_COLUMNS
 
 
 #def estimate_total_trip_cost(distance_km: float, budget_level: str, days: int) -> float:
@@ -156,34 +138,57 @@ def calculate_individual_scores(
     group_input: dict,
     group_profile: dict
 ) -> pd.DataFrame:
-    """Calculate individual satisfaction scores for fairness"""
+
     df = df.copy()
     group = group_input["group"]
 
     for person_idx, person in enumerate(group):
+
+        person_intent = compute_user_intent_vector(
+            person.get("description", "")
+        )
+
         def person_score(row):
+
             score = 0.0
 
-            person_temp = TEMP_MAP[person["temperature"]]
-            temp_match = 1.0 - abs(row["avg_temp_norm"] - person_temp)
-            score += 0.3 * temp_match
+            # 1️ Temperature
+            # 1️ Temperature (absolute, isto kao globalno)
 
-            base_interest = row.get(
-                "hybrid_text_score",
-                row.get("interest_score", 0)
-            )
-            score += 0.5 * base_interest
+            if "avg_temp" in row:
+                person_temp_label = person["temperature"].lower()
+                temp_match = temperature_score_absolute(
+                    row["avg_temp"],
+                    person_temp_label
+                )
+            else:
+                person_temp = TEMP_MAP[person["temperature"]]
+                temp_match = 1.0 - abs(row["avg_temp_norm"] - person_temp)
 
+            score += 0.25 * temp_match
+
+            # 2️ Individual attribute match
+            attr_score = 0.0
+            for attr in DATASET_COLUMNS:
+                if attr in row:
+                    city_value = row[attr] / 5.0
+                    attr_score += person_intent.get(attr, 0.0) * city_value
+
+            attr_score = min(1.0, attr_score)
+            score += 0.45 * attr_score
+
+            # 3️ Budget
             estimated_cost = row["estimated_cost"]
             person_budget = person["max_budget_eur"]
 
             if estimated_cost <= person_budget:
-                score += 0.2
-            elif person_budget <= 0:
-                penalty = 0.0
-            else:
-                penalty = max(0, 1 - (estimated_cost - person_budget) / person_budget)
-                score += 0.2 * penalty
+                score += 0.30
+            elif person_budget > 0:
+                penalty = max(
+                    0,
+                    1 - (estimated_cost - person_budget) / person_budget
+                )
+                score += 0.30 * penalty
 
             return float(score)
 
@@ -254,12 +259,12 @@ def apply_scoring(
 
     # Temperature score (use absolute if available)
     if "avg_temp" in df.columns:
-        user_temp_pref = "warm"
-        if group_input and len(group_input.get("group", [])) > 0:
-            user_temp_pref = group_input["group"][0]["temperature"]
-        
+        temp_label = map_temp_float_to_label(
+            group_profile["preferred_temperature"]
+        )
+
         df["temp_score"] = df["avg_temp"].apply(
-            lambda t: temperature_score_absolute(t, user_temp_pref)
+            lambda t: temperature_score_absolute(t, temp_label)
         )
     else:
         df["temp_score"] = df["avg_temp_norm"].apply(
@@ -280,12 +285,12 @@ def apply_scoring(
         df = calculate_fairness_metrics(df, group_profile["group_size"])
 
         df["final_score"] = (
-            0.40 * df.get("hybrid_text_score", df.get("interest_score", 0)) +
+            0.35 * df.get("hybrid_text_score", df.get("interest_score", 0)) +
             0.25 * df["budget_score"] +
             0.15 * df["temp_score"] +
             0.10 * df["duration_score"] +
-            0.10 * df["fairness_score"]
-        )               
+            0.15 * df["fairness_score"]
+        )            
 
 
 
@@ -303,3 +308,11 @@ def apply_scoring(
     df = df.fillna(0)
 
     return df
+
+def map_temp_float_to_label(temp_value: float) -> str:
+    if temp_value < 0.25:
+        return "cold"
+    elif temp_value < 0.75:
+        return "neutral"
+    else:
+        return "warm"
