@@ -5,3 +5,6 @@ numpy
 scikit-learn
 python-multipart
 pydantic
+streamlit
+geopy
+sentence-transformers

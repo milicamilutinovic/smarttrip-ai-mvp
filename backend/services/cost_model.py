@@ -34,7 +34,7 @@ def estimate_accommodation_cost(budget_level: str, days: int) -> float:
     """
     Estimates accommodation cost per person.
     """
-    per_night = ACCOMMODATION_COST.get(budget_level, 60)
+    per_night = ACCOMMODATION_COST.get(budget_level.lower(), 60)
     return per_night * days
 
 
@@ -49,7 +49,7 @@ def estimate_daily_spending(budget_level: str, days: int) -> float:
     """
     Estimates daily spending (food, activities, local transport) per person.
     """
-    per_day = DAILY_SPENDING.get(budget_level, 70)
+    per_day = DAILY_SPENDING.get(budget_level.lower(), 70)
     return per_day * days
 
 
