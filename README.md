@@ -28,6 +28,7 @@ pip install -r requirements.txt
 
 ### 4. Pokretanje backend servera
 
+- stara verzija front-a:
 uvicorn backend.api.main:app --reload
 
 Aplikacija će biti dostupna na:
@@ -37,3 +38,7 @@ http://127.0.0.1:8000
 API dokumentacija:
 
 http://127.0.0.1:8000/docs
+
+- pokretanje nove verzije front-a:
+(unutar venv okruzenja)
+python -m streamlit run main1.py 
