@@ -136,7 +136,7 @@ def load_destinations(start_city_coords: tuple, month: int, region: str):
 
     # TF-IDF
     vectorizer = TfidfVectorizer(
-        max_features=200,
+        max_features=500,
         stop_words="english",
         ngram_range=(1, 2),
         min_df=1
